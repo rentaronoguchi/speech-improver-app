@@ -29,6 +29,9 @@ function Home() {
 
   const mimeType = "audio/mp4";
 
+  const [transcribing, setTranscribing] = useState(false);
+  const [generatingFeedback, setGeneratingFeedback] = useState(false);
+
 
   const [transcript, setTranscript] = useState("N/A");
 
@@ -112,21 +115,14 @@ function Home() {
     setSelectedClip(null);
   };
 
-  const handleGetFeedback = async () => {
-    if (!transcript || transcript === "N/A") {
-      //alert("Please generate a transcript before getting feedback.");
-      return;
-    }
-    try {
-      const fb = await get_feedback(transcript);
-      setFeedbackData(fb);
-      // alert(fb);
-      navigate("/Feedback", { state: { words, feedback: fb, transcript: transcript } });
-    } catch (error) {
-      console.error("Error fetching feedback", error);
-      //alert("Failed to get feedback, please try again.");
-    }
+  const handleGetFeedback = () => {
+    if (!transcript || transcript === "N/A") return;
+    setPendingAction(() => async (speechType) => {
+      const fb = await get_feedback(transcript, speechType);
+      navigate("/Feedback", { state: { words, feedback: fb, transcript } });
+    });
   };
+
 
   const [clips, setClips] = useState([]);
 
@@ -200,129 +196,97 @@ function Home() {
     fetchClips();
   }, []);
   const handleTranscribeClip = async (clip) => {
+    setTranscribing(true);
     try {
-      // 1. Fetch row by file_name
       const { data: row, error: fetchError } = await supabase
         .from('saved_data')
         .select('id, transcript, words')
         .eq('file_name', clip.name.trim())
         .maybeSingle();
 
-      if (fetchError) {
-        console.error('Error fetching row:', fetchError);
-        alert('Failed to fetch row for ' + clip.name);
-        return;
-      }
+      if (fetchError) { console.error('Error fetching row:', fetchError); alert('Failed to fetch row for ' + clip.name); return; }
+      if (!row) { alert('No row found for ' + clip.name); return; }
+      if (row.transcript) { alert('Transcript already exists for ' + clip.name); return; }
 
-      if (!row) {
-        alert('No row found for ' + clip.name);
-        return;
-      }
-
-      if (row.transcript) {
-        alert('Transcript already exists for ' + clip.name);
-        return;
-      }
-
-      // 2. Generate transcript
       const response = await generateTranscript(clip.url);
       const transcriptText = response.text;
-      const wordsArray = response.words; // make sure your generateTranscript returns words
+      const wordsArray = response.words;
+      console.log('words:', wordsArray);
 
-      if (!transcriptText) {
-        alert('Transcription failed for ' + clip.name);
-        return;
-      }
+      if (!transcriptText) { alert('Transcription failed for ' + clip.name); return; }
 
-      // 3. Update saved_data row
       const { error: updateError } = await supabase
         .from('saved_data')
         .update({ transcript: transcriptText, words: wordsArray })
         .eq('file_name', clip.name.trim());
 
-      if (updateError) {
-        console.error('Error updating transcript/words:', updateError);
-        alert('Failed to save transcript for ' + clip.name);
-        return;
-      }
+      if (updateError) { console.error('Error updating transcript/words:', updateError); alert('Failed to save transcript for ' + clip.name); return; }
 
       alert('Transcript saved for ' + clip.name);
 
-      // 4. Update local clips state so UI updates
       setClips((prev) =>
         prev.map((c) =>
-          c.name === clip.name
-            ? { ...c, transcript: transcriptText, words: wordsArray }
-            : c
+          c.name === clip.name ? { ...c, transcript: transcriptText, words: wordsArray } : c
         )
       );
     } catch (err) {
       console.error('Unexpected error in handleTranscribeClip:', err);
       alert('Something went wrong for ' + clip.name);
+    } finally {
+      setTranscribing(false);
     }
   };
 
+
   const handleGenerateFeedback = async (clip) => {
     try {
-      // 1. Fetch the row for this clip
       const { data: row, error: fetchError } = await supabase
         .from('saved_data')
         .select('id, transcript, words, feedback')
         .eq('file_name', clip.name.trim())
         .maybeSingle();
 
-      if (fetchError) {
-        console.error('Error fetching row:', fetchError);
-        alert('Failed to fetch row for ' + clip.name);
-        return;
-      }
+      if (fetchError) { console.error('Error fetching row:', fetchError); return; }
+      if (!row) { alert('No row found for ' + clip.name); return; }
+      if (!row.transcript) { alert('Please transcribe the clip first.'); return; }
+      if (row.feedback) { alert('Feedback already exists for ' + clip.name); return; }
 
-      if (!row) {
-        alert('No row found for ' + clip.name);
-        return;
-      }
+      setPendingAction(() => async (speechType) => {
+        setGeneratingFeedback(true);
+        try {
+          const feedbackResult = await get_feedback(row.transcript, speechType);
 
-      if (!row.transcript) {
-        alert('Please transcribe the clip first.');
-        return;
-      }
+          const { error: updateError } = await supabase
+            .from('saved_data')
+            .update({ feedback: feedbackResult })
+            .eq('file_name', clip.name.trim());
 
-      if (row.feedback) {
-        alert('Feedback already exists for ' + clip.name);
-        return;
-      }
+          if (updateError) { console.error('Error updating feedback:', updateError); return; }
 
-      // 2. Generate feedback
-      const feedbackResult = await get_feedback(row.transcript);
+          alert('Feedback saved for ' + clip.name);
 
-      // 3. Update feedback in database
-      const { error: updateError } = await supabase
-        .from('saved_data')
-        .update({ feedback: feedbackResult })
-        .eq('file_name', clip.name.trim());
-
-      if (updateError) {
-        console.error('Error updating feedback:', updateError);
-        alert('Failed to save feedback for ' + clip.name);
-        return;
-      }
-
-      alert('Feedback saved for ' + clip.name);
-
-      // 4. Update local state so UI updates immediately
-      setClips((prev) =>
-        prev.map((c) =>
-          c.name === clip.name ? { ...c, feedback: feedbackResult } : c
-        )
-      );
-
+          setClips(prev => prev.map(c =>
+            c.name === clip.name ? { ...c, feedback: feedbackResult } : c
+          ));
+        } finally {
+          setGeneratingFeedback(false);
+        }
+      });
     } catch (err) {
       console.error('Unexpected error in handleGenerateFeedback:', err);
-      alert('Something went wrong for ' + clip.name);
     }
   };
 
+
+
   const [showTranscript, setShowTranscript] = useState(false);
+
+  const handleSpeechTypeSelect = async (type) => {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action) await action(type);
+  };
+
 
 
   const [pendingAction, setPendingAction] = useState(null);
@@ -399,7 +363,7 @@ function Home() {
       </>
 
     ): null}
-      </div>
+    </div>
 
 
       <br/>
@@ -434,18 +398,21 @@ function Home() {
             <div className="clip-row">
               <p>{selectedClip.name}</p>
               <audio src={selectedClip.url} controls />
+                {selectedClip.transcript ? (
+                  <span style={{ marginRight: '10px', color: 'green' }}>Transcript created</span>
+                ) : (
+                  <button disabled={transcribing} onClick={() => handleTranscribeClip(selectedClip)}>
+                    {transcribing ? 'Transcribing...' : 'Transcribe'}
+                  </button>
+                )}
 
-              {selectedClip.transcript ? (
-                <span style={{ marginRight: '10px', color: 'green' }}>Transcript created</span>
-              ) : (
-                <button onClick={() => handleTranscribeClip(selectedClip)}>Transcribe</button>
-              )}
-
-              {selectedClip.feedback ? (
-                <span style={{ marginRight: '10px', color: 'green' }}>Feedback created</span>
-              ) : (
-                <button onClick={() => handleGenerateFeedback(selectedClip)}>Generate Feedback</button>
-              )}
+                {selectedClip.feedback ? (
+                  <span style={{ marginRight: '10px', color: 'green' }}>Feedback created</span>
+                ) : (
+                  <button disabled={generatingFeedback} onClick={() => handleGenerateFeedback(selectedClip)}>
+                    {generatingFeedback ? 'Generating...' : 'Generate Feedback'}
+                  </button>
+                )}
 
               {selectedClip.transcript && selectedClip.feedback && (
                 <button style={{  background: "#f3f3f3", color: "#111", border: "1px solid #d1d5db"}}
@@ -472,6 +439,39 @@ function Home() {
                   "{selectedClip.transcript}"
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingAction && (
+        <div className="overlay" onClick={() => setPendingAction(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <button className="close-btn" onClick={() => setPendingAction(null)}>×</button>
+            <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '500' }}>What type of speech is this?</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {SPEECH_TYPES.filter(type => type !== "Other" && type !== "Unspecified").map(type => (
+                <button key={type} onClick={() => handleSpeechTypeSelect(type)}>{type}</button>
+              ))}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                <input
+                  type="text"
+                  placeholder="Other..."
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: '5px', border: '1px solid #ccc', fontSize: '14px' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) handleSpeechTypeSelect(e.target.value.trim());
+                  }}
+                />
+                <button onClick={(e) => {
+                  const input = e.target.previousSibling;
+                  if (input.value.trim()) handleSpeechTypeSelect(input.value.trim());
+                }}>Submit</button>
+              <button
+                onClick={() => handleSpeechTypeSelect("Unspecified")}
+                style={{ marginTop: '8px', color: '#999', borderColor: '#ddd', fontSize: '13px' }}
+              >
+                Skip
+              </button>
+              </div>
             </div>
           </div>
         </div>

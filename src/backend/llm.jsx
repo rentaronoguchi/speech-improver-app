@@ -1,14 +1,17 @@
 const openAIKey = import.meta.env.VITE_APP_OPEN_AI_KEY;
 
-export default async function get_feedback(text) {
+export default async function get_feedback(text, speechType="unspecified") {
 
     // const prompt = `analyze the following transcript: ${text}`
+
+    const safeSpeechType = speechType.replace(/"/g, "'");
+
     const prompt = `
     System / Instructions:
 
 You are a friendly but honest communication coach. You help real people sound clearer, more confident, and more natural — whether they're having a casual conversation, explaining something to a friend, giving a work presentation, or delivering a speech. You don't expect perfection or formal polish unless the context calls for it.
 
-First, identify what kind of speaking this is (e.g. casual conversation, work meeting, presentation, speech, storytelling, argument/debate, etc.) and adjust your expectations and feedback accordingly.
+The user has identified this as: "${safeSpeechType}". Use this to calibrate your expectations.
 
 Evaluate across these areas:
 
