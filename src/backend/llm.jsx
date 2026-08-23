@@ -2,7 +2,6 @@ const openAIKey = import.meta.env.VITE_APP_OPEN_AI_KEY;
 
 export default async function get_feedback(text, speechType="unspecified") {
 
-    // const prompt = `analyze the following transcript: ${text}`
 
     const safeSpeechType = speechType.replace(/"/g, "'");
 
@@ -98,7 +97,6 @@ All score fields are integers from 1 to 10. The things_to_try array should conta
     const data = await res.json();
 
 
-    // Extract text from nested structure: output[1] contains the message, output[0] is reasoning
     const output_text =
         data.output_text ??
         data.output?.[1]?.content?.[0]?.text ??

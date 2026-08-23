@@ -40,12 +40,8 @@ function Home() {
   const [feedbackData, setFeedbackData] = useState(null);
   
   const handleTranscribe = async () => {
-    //alert("transcroption started");
     const result = await generateTranscript(audioBlob);
-    //alert(result);
     setTranscript(result.text);
-    //alert(result.text);
-    //alert(JSON.stringify(result.words));
     setWords(result.words);
   };
 
@@ -129,7 +125,6 @@ function Home() {
   useEffect(() => {
     const fetchClips = async () => {
       try {
-        // 1. Fetch saved_data rows
         const { data: savedRows, error: savedError } = await supabase
           .from('saved_data')
           .select('id, file_name, transcript, feedback, words');
@@ -139,7 +134,6 @@ function Home() {
           return;
         }
 
-        // 2. List files in storage
         const { data: files, error: listError } = await supabase
           .storage
           .from('audio_files')
@@ -150,7 +144,6 @@ function Home() {
           return;
         }
 
-        // 3. Insert any new files not already in saved_data
         const existingNames = savedRows.map(r => r.file_name);
         const newFiles = files.filter(f => !existingNames.includes(f.name));
 
@@ -162,10 +155,8 @@ function Home() {
           if (insertError) console.error('Error inserting new rows:', insertError);
         }
 
-        // 4. Merge storage info with database info
         const mergedRows = await Promise.all(
           files.map(async (file) => {
-            // get signed URL
             const { data: signedData, error: urlError } = await supabase
               .storage
               .from('audio_files')
@@ -173,7 +164,6 @@ function Home() {
 
             if (urlError) console.error(urlError);
 
-            // find database row (after insertion, there should be one)
             const dbRow = savedRows.find(r => r.file_name === file.name) || {};
 
             return {

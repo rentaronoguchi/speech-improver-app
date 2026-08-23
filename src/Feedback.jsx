@@ -65,7 +65,6 @@ function Feedback() {
     const location = useLocation();
     const { words, feedback, transcript } = location.state || {};
 
-    //alert("Feedback component received feedback: " + JSON.stringify(feedback));
     const sample_transcript = `Hello and good afternoon, everyone. Um, my name is Ray. For our project in EDD, we will be creating a voice recorder that essentially takes input from our device and sends it to the cloud where we then analyze your voice to detect any filler words, your speech patterns, how fast you talk, all of that kinda stuff.
 
 And we use our AI models, our specially trained AI models, to give you a score of how well you presented or how well you talk on a day-to-day basis. Our product is extremely versatile, meaning you can deploy it at any time. The device fits in your pocket, and our device boasts 32GB of memory, allowing you to talk for many, many hours without ever worrying about the battery or storage running out.
@@ -77,7 +76,7 @@ In addition, The chassis is made of PLA 3D printed material, providing an eco-fr
 
 
     const sampleOutput = `{
-        "speech_type": "casual presentation",
+        "speech_type": "Casual EXAMPLE presentation",
         "quick_read": "A casual, friendly history of skateboarding with frequent fillers. The main milestones are clear (origin, 1970s wheel tech, 80s-90s culture, today’s Olympic status), but the delivery is choppy due to filler and hedging. With tighter signposting and shorter sentences, it would feel more confident and engaging.",
         "filler_words": {
             "total_count": 18,
@@ -306,11 +305,9 @@ In addition, The chassis is made of PLA 3D printed material, providing an eco-fr
 
     let json_output = null;
     if (feedback) {
-      // Try parsed first (most reliable)
       if (feedback.parsed) {
         json_output = feedback.parsed;
       } 
-      // Try raw text (might be JSON string)
       else if (feedback.raw && typeof feedback.raw === 'string' && feedback.raw !== 'No feedback returned') {
         try {
           json_output = JSON.parse(feedback.raw);
@@ -318,7 +315,6 @@ In addition, The chassis is made of PLA 3D printed material, providing an eco-fr
           console.warn('Could not parse feedback.raw', err);
         }
       } 
-      // Try OpenAI nested structure
       else if (feedback.openai?.output?.[1]?.content?.[0]?.text) {
         try {
           json_output = JSON.parse(feedback.openai.output[1].content[0].text);
@@ -326,7 +322,6 @@ In addition, The chassis is made of PLA 3D printed material, providing an eco-fr
           console.warn('Could not parse nested OpenAI response', err);
         }
       }
-      // Try OpenAI output[0] as fallback
       else if (feedback.openai?.output?.[0]?.content?.[0]?.text) {
         try {
           json_output = JSON.parse(feedback.openai.output[0].content[0].text);
@@ -334,7 +329,6 @@ In addition, The chassis is made of PLA 3D printed material, providing an eco-fr
           console.warn('Could not parse OpenAI output[0]', err);
         }
       }
-      // Finally, if feedback is a string, try parsing it
       else if (typeof feedback === 'string') {
         try {
           json_output = JSON.parse(feedback);
@@ -374,16 +368,8 @@ In addition, The chassis is made of PLA 3D printed material, providing an eco-fr
 
     const breakdown = json_output?.filler_words?.breakdown || {};
 
-    // const filler_total = json_output?.filler_words?.total_count ?? 0;
 
     const totalWords = wordsArray.length;
-
-    // const top2 = Object.entries(breakdown)
-    // .filter(([_, count]) => count > 0)
-    // .sort((a, b) => b[1] - a[1])
-    // .slice(0, 2)
-    // .map(([word]) => word)
-    // .join(', ') || 'None';
 
 
     const dimensionNames = {
@@ -395,7 +381,7 @@ In addition, The chassis is made of PLA 3D printed material, providing an eco-fr
         engagement: 'Engagement'
     };
 
-    const intervalMs = 10000; // 10-second intervals
+    const intervalMs = 10000; 
     const startTime = wordsArray[0]?.start ?? 0;
     const endTime = wordsArray[wordsArray.length - 1]?.end ?? 0;
 

@@ -13,7 +13,6 @@ function MenuBar() {
       <ul className="menubar-items">
         <li onClick={() => navigate('/')}>🏠</li>
         <li onClick={() => navigate('/Feedback')}>🗣</li>
-        <li onClick={() => navigate('/')}>⚙</li>
       </ul>
     </div>
   );
