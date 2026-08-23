@@ -1,5 +1,5 @@
-# Speach Improver App
-This repository contains the full code for a speech improver app that gives etailed feedback on pronunciation, pacing, filler words, and the overall delivery of any speech, presentation, or conversation. It can be used from your phone/device, or paired with a hardware recorder.
+# Speech Improver App
+This repository contains the full code for a speech improver app that gives detailed feedback on pronunciation, pacing, filler words, and the overall delivery of any speech, presentation, or conversation. It can be used from your phone/device, or paired with a hardware recorder.
 
 This project was originally built as part of a six month team effort that combined hardware (a physical recording device) and software, presented at a project showcase. This repository covers the software side, which works on its own, where your device's microphone can replace the hardware recorder.
 
@@ -25,7 +25,7 @@ The app consists of two pages:
     - Hardware-recorded feedback: browse a list of recordings pushed to the database by the hardware device, pick one to transcribe and generate feedback from.
 - Feedback page: the full breakdown of all features described above for the audio recording you clicked into the page from. Can also directly visit the page via the menubar to see an example presentation's feedback.
 
-Technical workflow: audio file is transcribed via AssemblyAI, then the transcript is used to generate speech metrics and also is sent to the OpenAI API to generate rubric scores and improvement improvement tips. Hardware recordings and their feedback are stored in Supabase; phone recordings are temporary and unsaved.
+Technical workflow: audio file is transcribed via AssemblyAI, then the transcript is used to generate speech metrics and also is sent to the OpenAI API to generate rubric scores and improvement tips. Hardware recordings and their feedback are stored in Supabase; phone recordings are temporary and unsaved.
 
 ## Tech stack
 - React + Vite
